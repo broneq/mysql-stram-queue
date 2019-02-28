@@ -1,2 +1,2 @@
-# mysql-stram-queue
-Mysql stream queue implematation - inspired on redis
+# sql-stram-queue
+SQL stream queue implematation - inspired on redis
