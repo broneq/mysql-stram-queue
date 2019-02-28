@@ -14,6 +14,10 @@ class Stream
     private $db;
     private $serializer;
 
+    const STATUS_NEW = 'NEW';
+    const STATUS_PENDING = 'PENDING';
+    const STATUS_ACK = 'ACK';
+
     /**
      * Stream constructor.
      * @param DbInterface         $db
@@ -26,38 +30,78 @@ class Stream
     }
 
     /**
+     * Create consumer group for stream
+     * @param $streamName
+     * @param $consumerGroup
+         * @return mixed
+     */
+    public function xCreateGroup($streamName, $consumerGroup)
+    {
+        $this->db
+            ->prepare('INSERT INTO ssq_consumer_group  (stream_id, name) SELECT id, :consumerGroup: FROM ssq_stream s WHERE s.stream_name=:streamName:')
+            ->execute([
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+            ]);
+        return $this->db->lastInsertId();
+    }
+
+    /**
      * Put mressage to stream
      * @param string      $streamName
      * @param mixed       $message
      * @param string|null $plannedExecution
      * @return bool
      */
-    public function xPut($streamName, $message, $plannedExecution = null)
+    public function xAdd($streamName, $message, $plannedExecution = null)
     {
-        
+        $this->db
+            ->prepare('INSERT INTO ssq_stream (stream_name, message, created_at, planned_execution) VALUES (:stream_name:, :message:, now(), :planned_execution:)')
+            ->execute([
+                ':stream_name:' => $streamName,
+                ':message:' => $message,
+                ':planned_execution:' => $plannedExecution,
+            ]);
+        $streamId = $this->db->lastInsertId();
+        return $this->db
+            ->prepare('INSERT INTO ssq_status (stream_id,consumer_group_id,status,created_at) 
+            SELECT :stream_id:,g.id,:status:,now() FROM ssq_consumer_group g WHERE g.stream_id=:stream:id:')
+            ->execute([
+                ':stream_id:' => $streamId,
+                ':status:' => self::STATUS_NEW
+            ]);
     }
 
     /**
      * Delete message from stream
-     * @param string $stramName
-     * @param int    $id
+     * @param int $id
      * @return bool
      */
-    public function xDel($stramName, $id)
+    public function xDel($id)
     {
-
+        return $this->db
+            ->prepare('UPDATE ssq_stream s,ssq_status st WHERE s.id=st.stream_id AND s.id=:id:')
+            ->execute([
+                'id' => $id
+            ]);
     }
 
     /**
      * Acknowledge message
-     * @param string $streamName
      * @param string $consumerGroup
      * @param int    $id
-     * @return bool
+     * @return void
      */
-    public function xAck($streamName, $consumerGroup, $id)
+    public function xAck($consumerGroup, $id)
     {
-
+        $this->db
+            ->prepare('UPDATE ssq_status st SET st.status=:ack: JOIN ssq_stream s ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
+            WHERE sg.name=:consumerGroup: AND s.id=:id:')
+            ->execute([
+                ':consumerGroup:' => $consumerGroup,
+                ':id:' => $id,
+                ':ack:' => self::STATUS_ACK,
+            ]);
     }
 
     /**
@@ -65,11 +109,22 @@ class Stream
      * @param string $streamName
      * @param string $consumerGroup
      * @param int    $count
-     * @return array|null
+     * @return mixed
      */
     public function xRead($streamName, $consumerGroup, $count = 1)
     {
+        $this->db
+            ->prepare('UPDATE ssq_status st SET st.status=:pending: JOIN ssq_stream s ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
+            WHERE sg.name=:consumerGroup: AND s.stream_name=:streamName: AND st.status=:status: LIMIT :limit:')
+            ->execute([
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+                ':status:' => self::STATUS_NEW,
+                ':pending' => self::STATUS_PENDING,
+                ':limit:' => $count,
+            ]);
 
+        return $this->xPending($streamName, $consumerGroup, $count);
     }
 
     /**
@@ -81,6 +136,16 @@ class Stream
      */
     public function xPending($streamName, $consumerGroup, $count = 1)
     {
+        $this->db
+            ->prepare('SELECT s.id,s.data FROM ssq_stream s JOIN ssq_status st ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
+            WHERE sg.name=:consumerGroup: AND s.stream_name=:streamName: AND st.status=:status: LIMIT :limit:')
+            ->execute([
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+                ':status:' => self::STATUS_PENDING,
+                ':limit:' => $count,
+            ]);
 
+        return $this->db->fetchAll();
     }
 }

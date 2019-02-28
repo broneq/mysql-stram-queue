@@ -26,4 +26,10 @@ interface DbInterface
      * @return mixed
      */
     public function fetchAll();
+
+    /**
+     * Returns last inserted id
+     * @return mixed
+     */
+    public function lastInsertId();
 }
