@@ -8,5 +8,6 @@
       <option name="SKIP_EMPTY_FUNCTION" value="false" />
       <option name="SKIP_EMPTY_METHOD" value="false" />
     </inspection_tool>
+    <inspection_tool class="SqlResolveInspection" enabled="false" level="WARNING" enabled_by_default="false" />
   </profile>
 </component>
