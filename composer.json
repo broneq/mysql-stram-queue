@@ -1,0 +1,28 @@
+{
+  "name": "broneq/sql-stream-queue",
+  "type": "library",
+  "description": "SQL stream queue implematation - inspired on redis",
+  "keywords": [
+    "mysql",
+    "php5",
+    "sql",
+    "stream"
+  ],
+  "homepage": "https://github.com/broneq/sql-stream-queue",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Przemysław Broniszewski",
+      "email": "przemek@broniszewski.net"
+    }
+  ],
+  "require": {
+    "php": ">=5.5",
+    "ext-dom": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Broneq\\SqlStreamQueue\\": "src/"
+    }
+  }
+}
