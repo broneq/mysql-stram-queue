@@ -33,7 +33,7 @@ class Stream
      * Create consumer group for stream
      * @param $streamName
      * @param $consumerGroup
-         * @return mixed
+     * @return mixed
      */
     public function xCreateGroup($streamName, $consumerGroup)
     {
@@ -59,6 +59,7 @@ class Stream
             ->prepare('INSERT INTO ssq_stream (stream_name, message, created_at, planned_execution) VALUES (:stream_name:, :message:, now(), :planned_execution:)')
             ->execute([
                 ':stream_name:' => $streamName,
+                //todo serialize message
                 ':message:' => $message,
                 ':planned_execution:' => $plannedExecution,
             ]);
@@ -137,7 +138,7 @@ class Stream
     public function xPending($streamName, $consumerGroup, $count = 1)
     {
         $this->db
-            ->prepare('SELECT s.id,s.data FROM ssq_stream s JOIN ssq_status st ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
+            ->prepare('SELECT s.id,s.message FROM ssq_stream s JOIN ssq_status st ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
             WHERE sg.name=:consumerGroup: AND s.stream_name=:streamName: AND st.status=:status: LIMIT :limit:')
             ->execute([
                 ':consumerGroup:' => $consumerGroup,
@@ -145,7 +146,11 @@ class Stream
                 ':status:' => self::STATUS_PENDING,
                 ':limit:' => $count,
             ]);
-
-        return $this->db->fetchAll();
+        $data = [];
+        foreach ($this->db->fetchAll() as $item) {
+            //todo unserialize message
+            $data[$item['id']] = $item['message'];
+        }
+        return $data ? $data : null;
     }
 }
