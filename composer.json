@@ -1,12 +1,13 @@
 {
   "name": "broneq/sql-stream-queue",
   "type": "library",
-  "description": "SQL stream queue implematation - inspired on redis",
+  "description": "SQL stream queue implementation - inspired on redis",
   "keywords": [
     "mysql",
     "php5",
     "sql",
-    "stream"
+    "stream",
+    "stream-processing"
   ],
   "homepage": "https://github.com/broneq/sql-stream-queue",
   "license": "MIT",
