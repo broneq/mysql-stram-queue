@@ -59,8 +59,7 @@ class Stream
             ->prepare('INSERT INTO ssq_stream (stream_name, message, created_at, planned_execution) VALUES (:stream_name:, :message:, now(), :planned_execution:)')
             ->execute([
                 ':stream_name:' => $streamName,
-                //todo serialize message
-                ':message:' => $message,
+                ':message:' => $this->serializer->serialize($message),
                 ':planned_execution:' => $plannedExecution,
             ]);
         $streamId = $this->db->lastInsertId();
@@ -148,8 +147,7 @@ class Stream
             ]);
         $data = [];
         foreach ($this->db->fetchAll() as $item) {
-            //todo unserialize message
-            $data[$item['id']] = $item['message'];
+            $data[$item['id']] = $this->serializer->deserialize($item['message']);
         }
         return $data ? $data : null;
     }
