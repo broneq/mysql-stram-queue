@@ -37,12 +37,26 @@ class Stream
      */
     public function xCreateGroup($streamName, $consumerGroup)
     {
+        $this->db->prepare('BEGIN')->execute();
         $this->db
             ->prepare('INSERT INTO ssq_consumer_group  (stream_id, name) SELECT id, :consumerGroup: FROM ssq_stream s WHERE s.stream_name=:streamName:')
             ->execute([
                 ':consumerGroup:' => $consumerGroup,
                 ':streamName:' => $streamName,
             ]);
+
+        $consumerGroupId = $this->db->lastInsertId();
+
+        $this->db
+            ->prepare('INSERT INTO ssq_status (stream_id,consumer_group_id,status,created_at) 
+            SELECT :stream_id:,g.id,:status:,now() FROM ssq_consumer_group g JOIN ssq_stream s ON (s.stream_id.g.stream_id) WHERE s.stream_name=:streamName: AND g.id=:consumer_group_id:')
+            ->execute([
+                ':streamName:' => $streamName,
+                ':consumer_group_id:' => $consumerGroupId,
+                ':status:' => self::STATUS_NEW
+            ]);
+
+        $this->db->prepare('COMMIT')->execute();
         return $this->db->lastInsertId();
     }
 
