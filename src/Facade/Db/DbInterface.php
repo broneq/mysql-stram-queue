@@ -8,18 +8,12 @@ namespace Broneq\SqlStreamQueue\Facade\Db;
 interface DbInterface
 {
     /**
-     * Prepares query
-     * @param string $sql
-     * @return mixed
-     */
-    public function prepare($sql);
-
-    /**
      * Executes query
-     * @param array $params
+     * @param string $sql
+     * @param array  $params
      * @return bool
      */
-    public function execute($params = []);
+    public function query($sql, $params = []);
 
     /**
      * Returns an array containing all of the result set rows
