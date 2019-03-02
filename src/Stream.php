@@ -50,20 +50,20 @@ class Stream
     {
         $this->db->query('START TRANSACTION');
         $this->db->query('INSERT INTO ssq_consumer_group  (stream_id, name) SELECT id, :consumerGroup: FROM ssq_stream s WHERE s.name=:streamName:',
-                         [
-                             ':consumerGroup:' => $consumerGroup,
-                             ':streamName:' => $streamName,
-                         ]);
+            [
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+            ]);
 
         $consumerGroupId = $this->db->lastInsertId();
 
         $this->db->query('INSERT INTO ssq_status (stream_queue_id,consumer_group_id,status,created_at) 
              SELECT s.id,:consumer_group_id:,:status:,now() FROM ssq_stream_queue sq JOIN ssq_stream s ON (s.id=sq.stream_id) WHERE s.name=:streamName:',
-                         [
-                             ':streamName:' => $streamName,
-                             ':consumer_group_id:' => $consumerGroupId,
-                             ':status:' => self::STATUS_NEW
-                         ]);
+            [
+                ':streamName:' => $streamName,
+                ':consumer_group_id:' => $consumerGroupId,
+                ':status:' => self::STATUS_NEW
+            ]);
 
         $this->db->query('COMMIT');
         return $this->db->lastInsertId();
@@ -80,19 +80,19 @@ class Stream
     {
         $this->db->query('INSERT INTO ssq_stream_queue (stream_id, message, created_at, planned_execution)
         SELECT id,:message:, now(), :planned_execution: FROM ssq_stream s WHERE name=:stream_name:',
-                         [
-                             ':stream_name:' => $streamName,
-                             ':message:' => $this->serializer->serialize($message),
-                             ':planned_execution:' => $plannedExecution,
-                         ]);
+            [
+                ':stream_name:' => $streamName,
+                ':message:' => $this->serializer->serialize($message),
+                ':planned_execution:' => $plannedExecution,
+            ]);
         $streamQueueId = $this->db->lastInsertId();
         return $this->db->query('INSERT INTO ssq_status (stream_queue_id,consumer_group_id,status,created_at) 
             SELECT :stream_queue_id:,g.id,:status:,now() FROM ssq_consumer_group g JOIN ssq_stream_queue sq ON (sq.stream_id=g.stream_id) 
             WHERE sq.id=:stream_queue_id:',
-                                [
-                                    ':stream_queue_id:' => $streamQueueId,
-                                    ':status:' => self::STATUS_NEW
-                                ]);
+            [
+                ':stream_queue_id:' => $streamQueueId,
+                ':status:' => self::STATUS_NEW
+            ]);
     }
 
     /**
@@ -103,9 +103,9 @@ class Stream
     public function xDel($id)
     {
         return $this->db->query('DELETE st,sq FROM ssq_stream_queue sq JOIN ssq_status st ON (sq.id=st.stream_queue_id AND sq.id=:id:)',
-                                [
-                                    ':id:' => $id
-                                ]);
+            [
+                ':id:' => $id
+            ]);
     }
 
     /**
@@ -119,13 +119,13 @@ class Stream
         return $this->db->query('UPDATE ssq_status st 
          JOIN ssq_stream_queue sq ON (sq.id=st.stream_queue_id) 
          JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
-        SET st.status=:ack:
+         SET st.status=:ack:
          WHERE sg.name=:consumerGroup: AND sq.id=:id:',
-                         [
-                             ':consumerGroup:' => $consumerGroup,
-                             ':id:' => $id,
-                             ':ack:' => self::STATUS_ACK,
-                         ]);
+            [
+                ':consumerGroup:' => $consumerGroup,
+                ':id:' => $id,
+                ':ack:' => self::STATUS_ACK,
+            ]);
     }
 
     /**
@@ -143,12 +143,12 @@ class Stream
             JOIN ssq_stream s ON (s.id=sq.stream_id)  
             JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
             WHERE sg.name=:consumerGroup: AND s.name=:streamName: AND st.status=:status: LIMIT :limit: FOR UPDATE',
-                                   [
-                                       ':consumerGroup:' => $consumerGroup,
-                                       ':streamName:' => $streamName,
-                                       ':status:' => self::STATUS_NEW,
-                                       ':limit:' => $count,
-                                   ]);
+            [
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+                ':status:' => self::STATUS_NEW,
+                ':limit:' => $count,
+            ]);
 
         $pendingIds = [];
         $data = [];
@@ -157,16 +157,14 @@ class Stream
             $data[$item['id']] = $this->serializer->deserialize($item['message']);
         }
         if ($pendingIds) {
-            $result = $this->db->query('UPDATE ssq_status st SET st.status=:status: WHERE st.id IN (' . implode(',', $pendingIds) . ')',
-                                       [
-                                           ':status:' => self::STATUS_PENDING,
-                                       ]);
+            $this->db->query('UPDATE ssq_status st SET st.status=:status: WHERE st.id IN (' . implode(',', $pendingIds) . ')',
+                [
+                    ':status:' => self::STATUS_PENDING,
+                ]);
         }
         $this->db->query('COMMIT');
-        echo $this->db->lastQuery();
-        //        $this->db->query('COMMIT');
-        return $data;
-        //        return $this->xPending($streamName, $consumerGroup, $count);
+
+        return $data ? $data : null;
     }
 
     /**
@@ -183,12 +181,12 @@ class Stream
             JOIN ssq_stream s ON (s.id=sq.stream_id)  
             JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
             WHERE sg.name=:consumerGroup: AND s.name=:streamName: AND st.status=:status: LIMIT :limit: FOR UPDATE',
-                                   [
-                                       ':consumerGroup:' => $consumerGroup,
-                                       ':streamName:' => $streamName,
-                                       ':status:' => self::STATUS_PENDING,
-                                       ':limit:' => $count,
-                                   ]);
+            [
+                ':consumerGroup:' => $consumerGroup,
+                ':streamName:' => $streamName,
+                ':status:' => self::STATUS_PENDING,
+                ':limit:' => $count,
+            ]);
         $data = [];
         foreach ($this->db->resultToArray($result) as $item) {
             $data[$item['id']] = $this->serializer->deserialize($item['message']);
