@@ -7,7 +7,6 @@ namespace Broneq\SqlStreamQueue\Facade\Db;
 class CodeIgniter1 implements DbInterface
 {
     private $db;
-    private $result;
 
     /**
      * CodeIgniter1 constructor.
@@ -26,7 +25,11 @@ class CodeIgniter1 implements DbInterface
      */
     public function query($sql, $params = [])
     {
-        $this->result = $this->db->query($this->bindParams($sql, $params));
+        return $this->db->query($this->bindParams($sql, $params));
+    }
+
+    public function lastQuery() {
+        return $this->db->last_query();
     }
 
     /**
@@ -46,9 +49,9 @@ class CodeIgniter1 implements DbInterface
     /**
      * @inheritdoc
      */
-    public function fetchAll()
+    public function resultToArray($result)
     {
-        return $this->result ? $this->result : [];
+        return is_object($result) ? $result->result_array() : [];
     }
 
     /**

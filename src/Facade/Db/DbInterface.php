@@ -17,9 +17,10 @@ interface DbInterface
 
     /**
      * Returns an array containing all of the result set rows
+     * @param mixed $result
      * @return mixed
      */
-    public function fetchAll();
+    public function resultToArray($result);
 
     /**
      * Returns last inserted id
