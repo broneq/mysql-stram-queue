@@ -112,12 +112,15 @@ class Stream
      * Acknowledge message
      * @param string $consumerGroup
      * @param int    $id
-     * @return void
+     * @return bool
      */
     public function xAck($consumerGroup, $id)
     {
-        $this->db->query('UPDATE ssq_status st SET st.status=:ack: JOIN ssq_stream s ON (s.id=st.stream_id) JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
-            WHERE sg.name=:consumerGroup: AND s.id=:id:',
+        return $this->db->query('UPDATE ssq_status st 
+         JOIN ssq_stream_queue sq ON (sq.id=st.stream_queue_id) 
+         JOIN ssq_consumer_group sg ON (sg.id=st.consumer_group_id)
+        SET st.status=:ack:
+         WHERE sg.name=:consumerGroup: AND sq.id=:id:',
                          [
                              ':consumerGroup:' => $consumerGroup,
                              ':id:' => $id,
