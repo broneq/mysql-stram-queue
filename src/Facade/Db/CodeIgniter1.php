@@ -16,6 +16,9 @@ class CodeIgniter1 implements DbInterface
     public function __construct($db)
     {
         $this->db = $db;
+        if (!$this->db->conn_id) {
+            $this->db->initialize();
+        }
     }
 
     /**
