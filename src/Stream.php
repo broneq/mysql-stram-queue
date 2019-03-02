@@ -30,6 +30,17 @@ class Stream
     }
 
     /**
+     * Create new stream
+     * @param string $streamName
+     * @return mixed
+     */
+    public function xCreateStream($streamName)
+    {
+        $this->db->query('INSERT INTO ssq_stream (name) VALUES (:stream_name:)', [':stream_name:' => $streamName]);
+            return $this->db->lastInsertId();
+    }
+
+    /**
      * Create consumer group for stream
      * @param $streamName
      * @param $consumerGroup
@@ -38,7 +49,7 @@ class Stream
     public function xCreateGroup($streamName, $consumerGroup)
     {
         $this->db->query('BEGIN');
-        $this->db->query('INSERT INTO ssq_consumer_group  (stream_id, name) SELECT id, :consumerGroup: FROM ssq_stream s WHERE s.stream_name=:streamName:',
+        $this->db->query('INSERT INTO ssq_consumer_group  (stream_id, name) SELECT id, :consumerGroup: FROM ssq_stream s WHERE s.name=:streamName:',
                          [
                              ':consumerGroup:' => $consumerGroup,
                              ':streamName:' => $streamName,
@@ -46,8 +57,8 @@ class Stream
 
         $consumerGroupId = $this->db->lastInsertId();
 
-        $this->db->query('INSERT INTO ssq_status (stream_id,consumer_group_id,status,created_at) 
-            SELECT s.id,g.id,:status:,now() FROM ssq_consumer_group g JOIN ssq_stream s ON (s.id=g.stream_id) WHERE s.stream_name=:streamName: AND g.id=:consumer_group_id:',
+        $this->db->query('INSERT INTO ssq_status (stream_queue_id,consumer_group_id,status,created_at) 
+             SELECT s.id,:consumer_group_id:,:status:,now() FROM ssq_stream_queue sq JOIN ssq_stream s ON (s.id=sq.stream_id) WHERE s.name=:streamName:',
                          [
                              ':streamName:' => $streamName,
                              ':consumer_group_id:' => $consumerGroupId,
@@ -67,17 +78,19 @@ class Stream
      */
     public function xAdd($streamName, $message, $plannedExecution = null)
     {
-        $this->db->query('INSERT INTO ssq_stream (stream_name, message, created_at, planned_execution) VALUES (:stream_name:, :message:, now(), :planned_execution:)',
+        $this->db->query('INSERT INTO ssq_stream_queue (stream_id, message, created_at, planned_execution)
+        SELECT id,:message:, now(), :planned_execution: FROM ssq_stream s WHERE name=:stream_name:',
                          [
                              ':stream_name:' => $streamName,
                              ':message:' => $this->serializer->serialize($message),
                              ':planned_execution:' => $plannedExecution,
                          ]);
-        $streamId = $this->db->lastInsertId();
-        return $this->db->query('INSERT INTO ssq_status (stream_id,consumer_group_id,status,created_at) 
-            SELECT :stream_id:,g.id,:status:,now() FROM ssq_consumer_group g WHERE g.stream_id=:stream:id:',
+        $streamQueueId = $this->db->lastInsertId();
+        return $this->db->query('INSERT INTO ssq_status (stream_queue_id,consumer_group_id,status,created_at) 
+            SELECT :stream_queue_id:,g.id,:status:,now() FROM ssq_consumer_group g JOIN ssq_stream_queue sq ON (sq.stream_id=g.stream_id) 
+            WHERE sq.id=:stream_queue_id:',
                                 [
-                                    ':stream_id:' => $streamId,
+                                    ':stream_queue_id:' => $streamQueueId,
                                     ':status:' => self::STATUS_NEW
                                 ]);
     }
